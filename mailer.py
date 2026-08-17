@@ -21,6 +21,9 @@ EMAIL_TEMPLATE = """
   .consigliato-box .badge {{ background: #C084FC; color: #000; font-weight: 700; font-size: 12px; padding: 3px 12px; border-radius: 20px; display: inline-block; margin-bottom: 10px; }}
   .consigliato-box h2 {{ color: #C084FC; margin: 0 0 8px; font-size: 16px; }}
   .consigliato-box p {{ color: rgba(255,255,255,0.85); margin: 0; font-size: 14px; line-height: 1.5; }}
+  .wp-links-box {{ background: #f0fff0; border: 1px solid #90EE90; border-radius: 6px; padding: 16px 20px; margin-bottom: 24px; }}
+  .wp-links-box h3 {{ margin: 0 0 10px; font-size: 14px; color: #2a7a2a; }}
+  .wp-links-box a {{ display: block; color: #2a7a2a; text-decoration: none; font-size: 13px; margin-bottom: 6px; font-weight: 600; }}
   .article-block {{ border: 1px solid #e8e8e8; border-radius: 6px; margin-bottom: 40px; overflow: hidden; }}
   .article-header {{ background: #1a0a2e; padding: 14px 20px; }}
   .article-num {{ background: #C084FC; color: #000; font-weight: 700; font-size: 13px; padding: 3px 10px; border-radius: 3px; }}
@@ -29,10 +32,10 @@ EMAIL_TEMPLATE = """
   .article-body h2 {{ font-size: 16px; color: #222; margin: 20px 0 10px; border-left: 3px solid #C084FC; padding-left: 10px; }}
   .article-body p {{ font-size: 14px; color: #444; line-height: 1.7; margin: 0 0 12px; }}
   .article-body strong {{ color: #111; }}
-  .seo-block {{ background: #f9f0ff; border: 1px solid #ddd; border-radius: 4px; padding: 12px 16px; margin-top: 16px; font-size: 12px; color: #555; }}
-  .image-block {{ background: #f9f0ff; border: 1px solid #ddd; border-radius: 4px; padding: 12px 16px; margin-top: 12px; font-size: 12px; color: #444; }}
-  .prompt {{ font-family: monospace; background: #f0e8ff; padding: 6px 10px; border-radius: 3px; display: block; margin-top: 4px; color: #333; font-size: 11px; }}
-  .firefly-link {{ display: inline-block; margin-top: 8px; background: #6b21a8; color: #fff; padding: 4px 12px; border-radius: 3px; text-decoration: none; font-size: 11px; font-weight: 700; }}
+  .seo-block {{ background: #f9f9f0; border: 1px solid #ddd; border-radius: 4px; padding: 12px 16px; margin-top: 16px; font-size: 12px; color: #555; }}
+  .image-block {{ background: #f5f5ff; border: 1px solid #ddd; border-radius: 4px; padding: 12px 16px; margin-top: 12px; font-size: 12px; color: #444; }}
+  .prompt {{ font-family: monospace; background: #eeeeff; padding: 6px 10px; border-radius: 3px; display: block; margin-top: 4px; color: #333; font-size: 11px; }}
+  .firefly-link {{ display: inline-block; margin-top: 8px; background: #333; color: #fff; padding: 4px 12px; border-radius: 3px; text-decoration: none; font-size: 11px; font-weight: 700; }}
   .footer {{ background: #f9f9f9; padding: 20px 32px; font-size: 12px; color: #aaa; border-top: 1px solid #eee; text-align: center; }}
 </style>
 </head>
@@ -44,6 +47,7 @@ EMAIL_TEMPLATE = """
   </div>
   <div class="content">
     {consigliato_html}
+    {wp_links_html}
     {articles_html}
   </div>
   <div class="footer">Generato da IncastroPC Linux Bot · {date}</div>
@@ -91,6 +95,16 @@ def format_consigliato_html(consigliato_text, articles):
         '</div>'
     )
 
+def format_wp_links_html(wp_links):
+    if not wp_links:
+        return ""
+    html = '<div class="wp-links-box"><h3>✅ Articolo pubblicato su WordPress</h3>'
+    for title, link in wp_links:
+        if title and link:
+            html += '<a href="' + link + '" target="_blank">🔗 ' + title + '</a>'
+    html += '</div>'
+    return html
+
 def format_article_html(block, index):
     yoast_kp = yoast_meta = yoast_slug = image_cover = image_body = ""
     clean_lines = []
@@ -126,18 +140,25 @@ def format_article_html(block, index):
         '</div>'
     )
 
-def send_digest(raw_text):
+def send_digest(raw_text, wp_links=None):
     today = datetime.date.today().strftime("%d %B %Y")
     consigliato_text = parse_consigliato(raw_text)
     article_blocks = parse_articles(raw_text)
     consigliato_html = format_consigliato_html(consigliato_text, article_blocks)
+    wp_links_html = format_wp_links_html(wp_links or [])
     if not article_blocks:
         articles_html = "<pre style='font-size:12px;'>" + raw_text[:3000] + "</pre>"
         count = "0"
     else:
         articles_html = "".join(format_article_html(b, i+1) for i, b in enumerate(article_blocks))
         count = str(len(article_blocks))
-    html_body = EMAIL_TEMPLATE.format(articles_html=articles_html, consigliato_html=consigliato_html, count=count, date=today)
+    html_body = EMAIL_TEMPLATE.format(
+        articles_html=articles_html,
+        consigliato_html=consigliato_html,
+        wp_links_html=wp_links_html,
+        count=count,
+        date=today
+    )
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "🐧 IncastroPC Linux News — " + today
     msg["From"] = EMAIL_FROM
